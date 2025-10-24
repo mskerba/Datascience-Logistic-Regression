@@ -12,8 +12,7 @@ def cost_function(h, house,m):
         j += yi * np.log(hi) + (1 - yi) * np.log(1 - hi)
     return - j/m
 
-def gradient_descent(matrix, h, house, m):
-    h_y = h - house
+def gradient_descent(matrix, h_y, m):
     gd = matrix.dot(h_y)
     return gd/m
 
@@ -22,51 +21,61 @@ def new_theta(thetas, learning_rate, gradient):
 
 
 
-def binary_target(df, house_name):
-    local = df.copy().reset_index(drop=True)
+def binary_target(df, house_name, batch_size=32):
+    local = df.copy()
 
-    y = (local["Hogwarts House"] == house_name).astype(int).to_numpy()
+    house = (local["Hogwarts House"] == house_name).astype(int).to_numpy()
 
-    if "Hogwarts House" in local.columns:
-        local = local.drop(columns=["Hogwarts House"])
+    if 'Hogwarts House' in local.columns:
+      local = local.drop(columns=['Hogwarts House'])
 
-    X = local.to_numpy()
-    X = np.hstack((np.ones((X.shape[0], 1)), X)).astype(float)
-    m, n = X.shape
+    # features -> numpy (+ bias)
+    matrix = local.to_numpy()
+    matrix_with_ones = np.hstack((np.ones((matrix.shape[0], 1)), matrix))
 
-    thetas = np.zeros(n, dtype=float)
+
+    thetas = np.zeros(matrix_with_ones.shape[1])
+    m = matrix_with_ones.shape[0]
     prev_cost = float("inf")
 
     for epoch in range(max_epoch):
-        idx = np.random.permutation(m)
-        Xs = X[idx]
-        ys = y[idx]
+        # shuffle indices each epoch
+        idx = np.arange(m)
+        np.random.shuffle(idx)
 
-        for i in range(m):
-            xi = Xs[i]
-            yi = ys[i]
-            zi = xi.dot(thetas)
-            hi = 1.0 / (1.0 + np.exp(-zi))
-            hi = np.clip(hi, 1e-12, 1 - 1e-12)
+        # iterate mini-batches
+        for start in range(0, m, batch_size):
+            end = min(start + batch_size, m)
+            b = idx[start:end]
+            Xb = matrix_with_ones[b]        # (B, n+1)
+            yb = house[b]                   # (B,)
 
-            grad = (hi - yi) * xi
-            thetas -= learning_rate * grad
+            # zb = Xb @ thetas                # (B,)
+            zb = Xb.dot(thetas)
+            hb = 1 / (1 + np.exp(-zb))
+            hb = np.clip(hb, 1e-12, 1 - 1e-12)
 
-        z_full = X.dot(thetas)
-        h_full = 1.0 / (1.0 + np.exp(-z_full))
+            # grad for this mini-batch: (n+1,)
+            # grad_b = (Xb.T @ (hb - yb)) / (end - start)
+            grad_b = gradient_descent(Xb.T, (hb - yb), (end - start))
+            
+
+            # update
+            thetas = thetas - learning_rate * grad_b
+
+        # z_full = matrix_with_ones @ thetas
+        z_full = matrix_with_ones.dot(thetas)
+        h_full = 1 / (1 + np.exp(-z_full))
         h_full = np.clip(h_full, 1e-12, 1 - 1e-12)
-        cost = cost_function(h_full, y, m)
 
+        cost = cost_function(h_full, house, m)
         if round(prev_cost, 7) == round(cost, 7):
-            print(f"{house_name} converged at epoch {epoch}")
             break
         prev_cost = cost
 
-    # Report binary accuracy (optional)
     preds = (h_full >= 0.5).astype(int)
-    acc = np.mean(preds == y)
-    print(f"Accuracy ({house_name} vs all): {acc:.4f}")
-
+    acc = np.mean(preds == house)
+    print(f"Accuracy ({house_name} vs all):", acc)
     return thetas
 
 if __name__ == "__main__":
@@ -106,5 +115,5 @@ if __name__ == "__main__":
     })
 
     # Save to CSV file
-    thetas_df.to_csv("thetas_sgd.csv", index=False)
+    thetas_df.to_csv("thetas-mini.csv", index=False)
     print("All theta values saved to thetas.csv")
