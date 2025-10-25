@@ -181,7 +181,7 @@ if '__main__' == __name__:
     df = pd.read_csv(args.input_file)
     # compute statistics
     cols = df.columns.tolist()
-    print(cols)
+
     counts = count(cols)
     means = mean(cols)
     mins = colmin(cols, df)
