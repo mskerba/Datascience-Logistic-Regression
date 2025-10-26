@@ -38,8 +38,9 @@ def main():
 
     X_df = pd.read_csv(args.test_csv)
 
-    X_df = X_df.drop(columns=["Hogwarts House"], errors="ignore")
-    X_df = X_df.dropna()
+    # X_df = X_df.fillna(0, inplace=True)
+    X_df = X_df.drop(columns=["Hogwarts House"], errors="ignore").fillna(-1)
+    # X_df = X_df.dropna()
     idx = X_df["Index"] if "Index" in X_df.columns else pd.Series(range(len(X_df)))
 
     drop_cols = [c for c in ["Index", "First Name", "Last Name", "Birthday", "Astronomy"] if c in X_df.columns]

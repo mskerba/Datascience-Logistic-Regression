@@ -73,8 +73,10 @@ if __name__ == "__main__":
                         help="path to training CSV file (default: datasets/dataset_train.csv)")
     args = parser.parse_args()
     df = pd.read_csv(args.input_file)
-    df = df.dropna()
-    df = df.drop(columns=["Index", "First Name", "Last Name", "Birthday", "Astronomy"])
+    
+    # df = df.dropna()
+    
+    df = df.drop(columns=["Index", "First Name", "Last Name", "Birthday", "Astronomy"]).fillna(0)
     
     if "Best Hand" in df.columns:
         unique_hands = df["Best Hand"].unique()
